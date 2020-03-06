@@ -1,2 +1,140 @@
 ---
 # tasks file for jenkins-setup
+
+- name: Install wget
+  apt:
+    name: wget
+    state: present
+
+- name: Install openjdk
+  apt:
+    name: default-jdk
+    state: present
+
+- name: Install Jenkins apt repository key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+    state: present
+
+- name: Configure repository
+  apt_repository:
+    repo: 'deb https://pkg.jenkins.io/debian-stable binary/'
+    state: present
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    update_cache: yes
+
+- name: Start and Enable Jenkins
+  service:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Enable Firewall
+  ufw:
+    state: enabled
+
+- name: Allow Port 8080
+  ufw:
+    rule: allow
+    port: '8080'
+
+- name: Allow OpenSSH
+  ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Restart Jenkins
+  service:
+    name: jenkins
+    state: restarted
+
+- name: Wait for 1 minutes
+  pause:
+    minutes: 1
+
+- name: Download CLI jar
+  get_url:
+    url: http://localhost:8080/jnlpJars/jenkins-cli.jar
+    dest: /opt/jenkins-cli.jar
+
+- name: Jenkins Initial Password
+  shell: cat /var/lib/jenkins/secrets/initialAdminPassword
+  changed_when: false
+  register: init_password
+
+- name: New User
+  shell: echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("{{ jenkins_username }}", "{{ jenkins_password }}")' | java -jar /opt/jenkins-cli.jar -s "{{ jenkins_url }}" -auth "{{ jenkins_username }}":"{{ init_password.stdout }}" -noKeyAuth groovy = – 
+
+- name: Skip Suggested Plugins Step
+  jenkins_script:
+    script: "{{ skip_plugins }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Install Required Plugins
+  shell: java -jar /opt/jenkins-cli.jar  -s "{{ jenkins_url }}" -auth "{{ jenkins_username }}":"{{ jenkins_password }}" -noKeyAuth install-plugin cloudbees-folder timestamper pipeline-model-definition subversion ldap antisamy-markup-formatter ws-cleanup github-organization-folder ssh-slaves email-ext build-timeout ant pipeline-stage-view matrix-auth mailer credentials-binding gradle git pam-auth github-oauth job-dsl sonar nexus-artifact-uploader -restart
+
+- name: Wait for a minute
+  pause:
+    minutes: 1
+
+- name: Configure Maven     
+  jenkins_script:
+    script: "{{ maven_config }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Configure SonarQube     
+  jenkins_script:
+    script: "{{ sonar_config }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Create new DSL Job
+  jenkins_script:
+    script: "{{ job_script }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Disable Script Approval
+  jenkins_script:
+    script: "{{ disable_script_approval }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Queue Pipeline Job
+  jenkins_script:
+    script: "{{ queue_script }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Waiting for Pipeline Job to start building
+  pause:
+    seconds: 15
+
+- name: Enable Script Approval  
+  jenkins_script:
+    script: "{{ enable_script_approval }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Creating Nexus Credentials
+  jenkins_script:
+    script: "{{ add_credentials }}"
+    url: "{{ jenkins_url }}"
+    user: "{{ jenkins_username }}"
+    password: "{{ jenkins_password }}"
+
+- name: Create Sonarqube Webhook
+  shell:
+    cmd: curl -X POST -u 'admin:admin' -d 'name=jenkins' -d 'url={{ jenkins_url }}/sonarqube-webhook' '{{ sonarqube_url }}/api/webhooks/create'
