@@ -76,25 +76,11 @@
     password: "{{ jenkins_password }}"
 
 - name: Install Required Plugins
-  shell: java -jar /opt/jenkins-cli.jar  -s "{{ jenkins_url }}" -auth "{{ jenkins_username }}":"{{ jenkins_password }}" -noKeyAuth install-plugin cloudbees-folder timestamper pipeline-model-definition subversion ldap antisamy-markup-formatter ws-cleanup github-organization-folder ssh-slaves email-ext build-timeout ant pipeline-stage-view matrix-auth mailer credentials-binding gradle git pam-auth github-oauth job-dsl sonar nexus-artifact-uploader nodejs -restart
+  shell: java -jar /opt/jenkins-cli.jar  -s "{{ jenkins_url }}" -auth "{{ jenkins_username }}":"{{ jenkins_password }}" -noKeyAuth install-plugin cloudbees-folder timestamper pipeline-model-definition subversion ldap antisamy-markup-formatter ws-cleanup github-organization-folder ssh-slaves email-ext build-timeout ant pipeline-stage-view matrix-auth mailer credentials-binding git pam-auth github-oauth job-dsl -restart
 
 - name: Wait for a minute
   pause:
     minutes: 1
-
-- name: Configure Maven     
-  jenkins_script:
-    script: "{{ maven_config }}"
-    url: "{{ jenkins_url }}"
-    user: "{{ jenkins_username }}"
-    password: "{{ jenkins_password }}"
-
-- name: Configure SonarQube     
-  jenkins_script:
-    script: "{{ sonar_config }}"
-    url: "{{ jenkins_url }}"
-    user: "{{ jenkins_username }}"
-    password: "{{ jenkins_password }}"
 
 - name: Create new DSL Job
   jenkins_script:
@@ -127,15 +113,3 @@
     url: "{{ jenkins_url }}"
     user: "{{ jenkins_username }}"
     password: "{{ jenkins_password }}"
-
-- name: Creating Nexus Credentials
-  jenkins_script:
-    script: "{{ add_credentials }}"
-    url: "{{ jenkins_url }}"
-    user: "{{ jenkins_username }}"
-    password: "{{ jenkins_password }}"
-
-
-#- name: Create Sonarqube Webhook
-#  shell:
-#    cmd: curl -X POST -u 'admin:admin' -d 'name=jenkins' -d 'url={{ jenkins_url }}/sonarqube-webhook' '{{ sonarqube_url }}/api/webhooks/create'
