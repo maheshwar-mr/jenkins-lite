@@ -1,5 +1,5 @@
 ---
-# tasks file for jenkins-setup
+# tasks file for jenkins-lite
 
 - name: Install wget
   apt:
