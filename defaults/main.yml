@@ -1,5 +1,5 @@
 ---
-# defaults file for jenkins-setup
+# defaults file for jenkins-lite
 
 # Jenkins variables
 jenkins_url: http://localhost:8080
